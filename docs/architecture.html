@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SONIQWERK — Diagrammes d'Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07070f;
+      --surface:   #0f0f1a;
+      --surface2:  #14142a;
+      --border:    #1e1e3a;
+      --purple:    #7c3aed;
+      --cyan:      #06b6d4;
+      --amber:     #f59e0b;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 250px;
+      min-width: 250px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 28px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(130deg, var(--purple), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 28px;
+      padding-left: 4px;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      padding: 12px 12px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--surface2); color: var(--text); }
+
+    .nav-num {
+      display: grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      background: var(--surface2);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--purple);
+      flex-shrink: 0;
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      padding: 52px 60px;
+      overflow-x: hidden;
+      max-width: 1100px;
+    }
+
+    .page-header { margin-bottom: 56px; }
+    .page-header h1 {
+      font-size: 40px;
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      background: linear-gradient(130deg, var(--purple) 0%, var(--cyan) 40%, var(--amber) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    .page-header p { color: var(--muted); font-size: 16px; line-height: 1.6; }
+    .page-header .version {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 3px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Diagram cards ── */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 36px;
+      scroll-margin-top: 32px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .section-icon {
+      font-size: 22px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    .section-head h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .section-head p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    .badge-arch  { background: #1e0a40; color: var(--purple);  border: 1px solid #3b0fa8; }
+    .badge-rag   { background: #0a1f2e; color: var(--cyan);    border: 1px solid #0e7490; }
+    .badge-agent { background: #1f1000; color: var(--amber);   border: 1px solid #b45309; }
+    .badge-infra { background: #0a1f0a; color: var(--green);   border: 1px solid #166534; }
+    .badge-flow  { background: #1f0a0a; color: var(--red);     border: 1px solid #991b1b; }
+
+    .diagram-wrap {
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 24px 16px;
+      overflow-x: auto;
+    }
+    .diagram-wrap .mermaid {
+      min-width: 500px;
+    }
+
+    /* ── Phase timeline ── */
+    .phases {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .phase-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .phase-card .phase-num {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .phase-card .phase-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .phase-card .phase-weeks {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .phase-card.p1 { border-top: 2px solid var(--cyan); }
+    .phase-card.p2 { border-top: 2px solid var(--purple); }
+    .phase-card.p3 { border-top: 2px solid var(--amber); }
+    .phase-card.p4 { border-top: 2px solid var(--green); }
+    .phase-card.p5 { border-top: 2px solid var(--red); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="logo">⬡ SONIQWERK</div>
+  <span class="nav-label">Diagrammes</span>
+  <a href="#overview"   class="nav-item"><span class="nav-num">1</span>Architecture Globale</a>
+  <a href="#rag"        class="nav-item"><span class="nav-num">2</span>Pipeline RAG</a>
+  <a href="#ableton"    class="nav-item"><span class="nav-num">3</span>Intégration Ableton</a>
+  <a href="#agent"      class="nav-item"><span class="nav-num">4</span>ReAct Agent</a>
+  <a href="#llm-router" class="nav-item"><span class="nav-num">5</span>LLM Router</a>
+  <a href="#infra"      class="nav-item"><span class="nav-num">6</span>Infrastructure</a>
+  <a href="#userflow"   class="nav-item"><span class="nav-num">7</span>Flux Utilisateur</a>
+  <span class="nav-label" style="margin-top:12px">Roadmap</span>
+  <a href="#phases"     class="nav-item"><span class="nav-num">→</span>Phases de dev</a>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <header class="page-header">
+    <h1>Architecture<br/>SONIQWERK</h1>
+    <p>L'agent IA phare de la production et du mixage<br/>de musique électronique.</p>
+    <span class="version">v2.0 — 2026</span>
+  </header>
+
+  <!-- 1. ARCHITECTURE GLOBALE -->
+  <section class="section" id="overview">
+    <div class="section-head">
+      <span class="section-icon">🏗️</span>
+      <div>
+        <h2>Architecture Globale <span class="badge badge-arch">Architecture</span></h2>
+        <p>Les 5 couches du système : interfaces, frontend React, backend FastAPI, services core (ChromaDB + Postgres + Redis) et intégrations externes (LLM APIs + Ableton Live).</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TB
+  subgraph UI["Interfaces Utilisateur"]
+    A["💻 Chat Web"]
+    B["🎛️ Max for Live SONIQWERK.amxd"]
+  end
+
+  subgraph FE["Frontend — React + TypeScript + Tailwind"]
+    C["ChatWindow\nSSE Streaming"]
+    D["DAW Analyzer\nPanel"]
+    E["Document\nLibrary"]
+    F["Plugin\nExplorer"]
+  end
+
+  subgraph BE["Backend — FastAPI"]
+    G["POST /v1/chat"]
+    H["POST /v1/documents/ingest"]
+    I["POST /v1/analysis/ableton"]
+    J["WebSocket Bridge\n:8001"]
+  end
+
+  subgraph CORE["Core Services"]
+    K[("ChromaDB\nVectors")]
+    L[("PostgreSQL\nMetadata")]
+    M[("Redis\nCache + Queue")]
+    N["Celery Workers\nAsync Ingestion"]
+    O["LangChain\nReAct Agent"]
+    P["RAG Engine\nMMR + Reranker"]
+  end
+
+  subgraph EXT["Intégrations Externes"]
+    Q["GPT-4o\nOpenAI"]
+    R["Claude Sonnet\nAnthropic"]
+    S["Ableton Live 12\n+ Live API"]
+  end
+
+  A --> C & D & E & F
+  B --> J
+  C -->|SSE| G
+  D --> I
+  E --> H
+  G --> P --> K
+  G --> O
+  H --> N --> K & L
+  I --> L
+  J <-->|bidirectionnel| S
+  O --> J
+  P --> Q & R
+  O --> Q & R
+  O --> M
+  N --> M
+
+  style UI   fill:#1a0a2e,stroke:#7c3aed,color:#e2e8f0
+  style FE   fill:#0a1a2e,stroke:#06b6d4,color:#e2e8f0
+  style BE   fill:#0a1a0a,stroke:#22c55e,color:#e2e8f0
+  style CORE fill:#1a1a0a,stroke:#f59e0b,color:#e2e8f0
+  style EXT  fill:#1a0a0a,stroke:#ef4444,color:#e2e8f0
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. PIPELINE RAG -->
+  <section class="section" id="rag">
+    <div class="section-head">
+      <span class="section-icon">📚</span>
+      <div>
+        <h2>Pipeline RAG <span class="badge badge-rag">RAG</span></h2>
+        <p>De l'ingestion des documents PDF (100+ manuels DAW, plugins, livres audio) jusqu'à la réponse streamée. MMR retrieval + cross-encoder reranking pour maximiser la précision.</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart LR
+  subgraph ING["Ingestion Asynchrone — Celery"]
+    A["📄 PDF / Doc"] --> B["pdf_loader.py\nRecursiveCharacterTextSplitter"]
+    B --> C["Chunks\n1000 tokens / overlap 200"]
+    C --> D["Métadonnées\ncatégorie + source"]
+    D --> E["text-embedding-3-large\nOpenAI"]
+    E --> F[("ChromaDB\nMulti-collections")]
+  end
+
+  subgraph QUERY["Query Time"]
+    G["❓ Question"] --> H["Embedding\nrequête"]
+    H --> I["MMR Retrieval\nfetch_k=30  lambda=0.7"]
+    I --> J["Top-8 chunks\ndiversité max"]
+    J --> K["Cross-Encoder\nReranker"]
+    K --> L["Top-4 chunks\nre-triés"]
+  end
+
+  subgraph GEN["Génération LLM"]
+    L --> M["Context Builder\n+ Historique (10 turns)"]
+    M --> N["System Prompt\nDomain Audio Expert"]
+    N --> O["LLM Router"]
+    O --> P["GPT-4o / Claude\nStreaming SSE"]
+  end
+
+  F -.->|indexé| I
+
+  style ING   fill:#0a1a2e,stroke:#06b6d4,color:#e2e8f0
+  style QUERY fill:#0a1a1a,stroke:#22c55e,color:#e2e8f0
+  style GEN   fill:#1a0a2e,stroke:#7c3aed,color:#e2e8f0
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. INTÉGRATION ABLETON -->
+  <section class="section" id="ableton">
+    <div class="section-head">
+      <span class="section-icon">🎛️</span>
+      <div>
+        <h2>Intégration Ableton Live <span class="badge badge-agent">Agent</span></h2>
+        <p>Boucle bidirectionnelle READ → THINK → ACT → VERIFY. Le Max for Live device collecte le contexte DAW en temps réel et exécute les actions générées par l'agent.</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+sequenceDiagram
+  participant AL as 🎛️ Ableton Live 12
+  participant M4L as 📱 Max for Live
+  participant WS as 🔌 WebSocket :8001
+  participant AG as 🧠 ReAct Agent
+  participant LLM as 🤖 LLM
+
+  Note over AL,LLM: Phase READ — Collecte du contexte DAW
+  AL->>M4L: Live API context (tracks, devices, clips, BPM...)
+  M4L->>WS: JSON context snapshot
+  WS->>AG: session_context
+
+  Note over AL,LLM: Phase THINK — Planification
+  AG->>LLM: Prompt + context + tools disponibles
+  LLM-->>AG: ReAct — Thought + Action Plan
+
+  Note over AL,LLM: Phase CONFIRM — Si risque élevé
+  AG->>M4L: action_plan + risk_level HIGH
+  M4L->>AL: Affiche confirmation UI
+  AL-->>M4L: Approuvé / Rejeté
+  M4L-->>AG: user_decision
+
+  Note over AL,LLM: Phase ACT — Exécution dans Ableton
+  AG->>WS: actions array
+  WS->>M4L: Execute actions
+  M4L->>AL: Live API calls (set_volume, add_track, write_automation...)
+
+  Note over AL,LLM: Phase VERIFY — Confirmation état final
+  AL->>M4L: Updated state
+  M4L->>WS: Post-action context
+  WS->>AG: verification_snapshot
+  AG->>LLM: Actions completed summary
+  LLM-->>AG: Success + next suggestions
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. REACT AGENT -->
+  <section class="section" id="agent">
+    <div class="section-head">
+      <span class="section-icon">🧠</span>
+      <div>
+        <h2>Boucle ReAct Agent <span class="badge badge-agent">Agent</span></h2>
+        <p>Architecture interne LangChain ReAct. 6 tools spécialisés, système de sécurité à 3 niveaux de risque, undo manager pour les actions destructives.</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TD
+  A(["👤 User Request"]) --> B["Agent Entry\nagent.py"]
+  B --> C{"💭 THOUGHT\nQue faire ?"}
+  C --> D["Sélection du Tool"]
+
+  D --> T1["🔍 AbletonReadTool\nLecture session state"]
+  D --> T2["✍️ AbletonWriteTool\nModif. tracks / devices"]
+  D --> T3["📈 AutomationTool\nÉcriture enveloppes"]
+  D --> T4["🎵 MIDITool\nCréation clips MIDI"]
+  D --> T5["📚 RAGTool\nRecherche knowledge base"]
+  D --> T6["🎛️ MixTemplateTool\nTemplates par genre"]
+
+  T1 & T2 & T3 & T4 & T5 & T6 --> E{"👁️ OBSERVATION\nRésultat du tool"}
+
+  E --> F{"Tâche\nterminée ?"}
+  F -->|Non| C
+  F -->|Oui| G["action_planner.py\nPlan multi-étapes"]
+
+  G --> H{"Risk\nLevel ?"}
+  H -->|"🟢 LOW — lecture / infos"| I["Exécution directe"]
+  H -->|"🟡 MEDIUM — modif. paramètres"| J["Exécution + log"]
+  H -->|"🔴 HIGH — suppression / restructure"| K["Confirmation\nutilisateur requise"]
+
+  K --> L{"Approuvé ?"}
+  L -->|"✅ Oui"| M["undo_manager.py\nSnapshot état avant"]
+  L -->|"❌ Non"| N(["Annulé"])
+  M --> I
+  J --> I
+  I --> O(["✅ Réponse finale"])
+
+  style T1 fill:#0a1a2e,stroke:#06b6d4,color:#e2e8f0
+  style T2 fill:#1a0a0a,stroke:#ef4444,color:#e2e8f0
+  style T3 fill:#0a1a0a,stroke:#22c55e,color:#e2e8f0
+  style T4 fill:#1a0a2e,stroke:#7c3aed,color:#e2e8f0
+  style T5 fill:#1a1a0a,stroke:#f59e0b,color:#e2e8f0
+  style T6 fill:#0a1a1a,stroke:#06b6d4,color:#e2e8f0
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. LLM ROUTER -->
+  <section class="section" id="llm-router">
+    <div class="section-head">
+      <span class="section-icon">🔀</span>
+      <div>
+        <h2>LLM Router <span class="badge badge-rag">Multi-LLM</span></h2>
+        <p>Sélection automatique du modèle selon le type de requête. Optimisation coût/qualité : GPT-4o-mini pour les FAQ simples, Claude Sonnet pour le sound design créatif, local pour offline.</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TD
+  A(["❓ Requête entrante"]) --> B["llm_router.py\nClassification automatique"]
+
+  B --> C{"Type de requête ?"}
+
+  C --> D["🎵 Sound Design\nCréatif — ambiance, timbre, texture"]
+  C --> E["🔧 Technique précise\nConfig, routing, paramètres DAW"]
+  C --> F["❓ FAQ Simple\nDéfinitions, raccourcis, bases"]
+  C --> G["📡 Mode Offline\nSans API externe"]
+
+  D --> H["Claude Sonnet 4.6\nMeilleure créativité\nraisonnement nuancé"]
+  E --> I["GPT-4o\nInstruction-following précis\nmeilleur pour les actions"]
+  F --> J["GPT-4o-mini\nRapide + économique\n~10x moins cher"]
+  G --> K["Ollama — llama.cpp\nModèle local\nprivacy-first"]
+
+  H & I & J & K --> L["Response Builder\n+ Context Injection\n+ Mémoire conversationnelle"]
+  L --> M(["💬 SSE Stream → Frontend"])
+
+  style H fill:#2e1a0a,stroke:#f59e0b,color:#e2e8f0
+  style I fill:#0a2e0a,stroke:#22c55e,color:#e2e8f0
+  style J fill:#0a1a2e,stroke:#06b6d4,color:#e2e8f0
+  style K fill:#1a0a2e,stroke:#7c3aed,color:#e2e8f0
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. INFRASTRUCTURE -->
+  <section class="section" id="infra">
+    <div class="section-head">
+      <span class="section-icon">🐳</span>
+      <div>
+        <h2>Infrastructure Docker <span class="badge badge-infra">Infrastructure</span></h2>
+        <p>Services docker-compose. API stateless pour le scaling horizontal, Redis Pub/Sub pour distribuer les WebSockets entre instances, Prometheus + Grafana pour l'observabilité.</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TB
+  LB["⚖️ Load Balancer\nnginx / traefik"]
+
+  subgraph API["API Layer"]
+    A["🚀 fastapi :8000\nStateless — scalable ×N"]
+    B["⚙️ celery-worker\nIngestion async"]
+    C["🔌 ws-bridge :8001\nWebSocket bidirectionnel"]
+  end
+
+  subgraph DATA["Data Layer"]
+    D[("🐘 PostgreSQL :5432\nMetadata + History")]
+    E[("🔴 Redis :6379\nCache + Sessions\nPub/Sub + Queues")]
+    F[("🔵 ChromaDB\nVectors — 200k+ chunks")]
+  end
+
+  subgraph OBS["Observabilité"]
+    G["📊 Prometheus :9090\nMétriques RAG + tokens"]
+    H["📈 Grafana :3001\nDashboards"]
+  end
+
+  subgraph FE["Frontend"]
+    I["⚡ Vite+React :5173\nDev"]
+    I2["🌐 nginx :80\nProd — CDN statique"]
+  end
+
+  I & I2 --> LB --> A
+  A --> D & E & F
+  B --> E & F
+  C --> E
+  A --> G --> H
+
+  style API  fill:#0a2e0a,stroke:#22c55e,color:#e2e8f0
+  style DATA fill:#0a1a2e,stroke:#06b6d4,color:#e2e8f0
+  style OBS  fill:#2e1a0a,stroke:#f59e0b,color:#e2e8f0
+  style FE   fill:#1a0a2e,stroke:#7c3aed,color:#e2e8f0
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. FLUX UTILISATEUR -->
+  <section class="section" id="userflow">
+    <div class="section-head">
+      <span class="section-icon">🔄</span>
+      <div>
+        <h2>Flux Utilisateur Complet <span class="badge badge-flow">End-to-End</span></h2>
+        <p>Parcours complet depuis la saisie jusqu'à la réponse ou l'action dans Ableton. Deux modes : RAG Chat (réponse streamée) et Agent DAW autonome (action dans le projet).</p>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TD
+  A(["👤 Utilisateur"]) --> B{"Point d'entrée ?"}
+
+  B -->|"💬 Question / Chat"| C["ChatWindow React\nInputBar"]
+  B -->|"📁 Upload Document"| D["Drag and Drop\nDocumentLibrary"]
+  B -->|"🎛️ Via Max for Live"| E["SONIQWERK.amxd\nInterface DAW"]
+
+  C --> F["POST /v1/chat\nSSE Streaming"]
+  D --> G["POST /v1/documents/ingest\nCelery Task ID retourné"]
+  E --> H["WebSocket :8001\nbidirectionnel"]
+
+  G --> I["Celery Worker\nPipeline ingestion"]
+  I --> J[("ChromaDB\nIndexé")]
+  J -.->|"disponible pour"| F
+
+  F --> K{"RAG\nnécessaire ?"}
+  K -->|Oui| L["RAG Engine\nMMR + Reranker"]
+  K -->|Non| M["Réponse directe\nLLM"]
+
+  L --> N["LLM Router"]
+  M --> N
+  N --> O["Streaming LLM\nGPT-4o / Claude"]
+
+  H --> P{"Mode\nAgent ?"}
+  P -->|"READ — Contexte"| Q["Collecte session\nAbleton"]
+  P -->|"WRITE — Action"| R["ReAct Agent\nPlan multi-étapes"]
+
+  Q --> R
+  R --> S{"Risk\nLevel ?"}
+  S -->|"🔴 Élevé"| T["Confirmation UI\nMax for Live"]
+  S -->|"🟢 Bas"| U["Exécution directe\nLive API"]
+  T -->|"✅ Approuvé"| U
+
+  O --> V(["💬 Réponse streamée\nChat UI"])
+  U --> W(["🎛️ Action effectuée\ndans Ableton Live"])
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP PHASES -->
+  <section class="section" id="phases">
+    <div class="section-head">
+      <span class="section-icon">🗓️</span>
+      <div>
+        <h2>Roadmap — 5 Phases <span class="badge badge-infra">Planning</span></h2>
+        <p>8 semaines de développement. Chaque phase délivre un incrément fonctionnel testable.</p>
+      </div>
+    </div>
+    <div class="phases">
+      <div class="phase-card p1">
+        <div class="phase-num">Phase 1</div>
+        <div class="phase-name">Backend RAG Core</div>
+        <div class="phase-weeks">Semaines 1–2</div>
+        <hr class="divider" style="margin:8px 0"/>
+        <div style="font-size:11px;color:var(--muted);line-height:1.8">
+          FastAPI + PostgreSQL<br/>ChromaDB + Redis<br/>Pipeline ingestion PDF<br/>Endpoint /v1/chat SSE<br/>Seed base connaissance
+        </div>
+      </div>
+      <div class="phase-card p2">
+        <div class="phase-num">Phase 2</div>
+        <div class="phase-name">Analyse DAW &amp; Audio</div>
+        <div class="phase-weeks">Semaine 3</div>
+        <hr class="divider" style="margin:8px 0"/>
+        <div style="font-size:11px;color:var(--muted);line-height:1.8">
+          ableton_parser.py v2<br/>preset_parser (.fxp .fxb)<br/>audio_analyzer (librosa)<br/>plugin_db registry<br/>advice_generator v2
+        </div>
+      </div>
+      <div class="phase-card p3">
+        <div class="phase-num">Phase 3</div>
+        <div class="phase-name">Agent + M4L</div>
+        <div class="phase-weeks">Semaines 4–5</div>
+        <hr class="divider" style="margin:8px 0"/>
+        <div style="font-size:11px;color:var(--muted);line-height:1.8">
+          WebSocket bridge v2<br/>SONIQWERK.amxd<br/>LangChain ReAct Agent<br/>6 Ableton Tools<br/>Boucle READ→ACT→VERIFY
+        </div>
+      </div>
+      <div class="phase-card p4">
+        <div class="phase-num">Phase 4</div>
+        <div class="phase-name">Frontend React</div>
+        <div class="phase-weeks">Semaines 5–6</div>
+        <hr class="divider" style="margin:8px 0"/>
+        <div style="font-size:11px;color:var(--muted);line-height:1.8">
+          Vite + React + Tailwind<br/>Zustand stores<br/>ChatWindow SSE<br/>DAWAnalyzer UI<br/>Spectrum Visualizer
+        </div>
+      </div>
+      <div class="phase-card p5">
+        <div class="phase-num">Phase 5</div>
+        <div class="phase-name">Production &amp; Scaling</div>
+        <div class="phase-weeks">Semaines 7–8</div>
+        <hr class="divider" style="margin:8px 0"/>
+        <div style="font-size:11px;color:var(--muted);line-height:1.8">
+          Docker-compose prod<br/>CI/CD GitHub Actions<br/>Prometheus + Grafana<br/>Auth JWT + rate limit<br/>Tests E2E Playwright
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    theme: 'dark',
+    themeVariables: {
+      primaryColor:          '#1e1e2e',
+      primaryTextColor:      '#e2e8f0',
+      primaryBorderColor:    '#7c3aed',
+      lineColor:             '#7c3aed',
+      secondaryColor:        '#0f0f1a',
+      tertiaryColor:         '#07070f',
+      background:            '#07070f',
+      mainBkg:               '#0f0f1a',
+      nodeBorder:            '#2a2a3a',
+      clusterBkg:            '#0f0f1a',
+      titleColor:            '#e2e8f0',
+      edgeLabelBackground:   '#0f0f1a',
+      actorBkg:              '#1e1e2e',
+      actorBorder:           '#7c3aed',
+      actorTextColor:        '#e2e8f0',
+      actorLineColor:        '#7c3aed',
+      signalColor:           '#06b6d4',
+      signalTextColor:       '#e2e8f0',
+      labelBoxBkgColor:      '#1e1e2e',
+      labelBoxBorderColor:   '#7c3aed',
+      labelTextColor:        '#e2e8f0',
+      loopTextColor:         '#e2e8f0',
+      noteBorderColor:       '#f59e0b',
+      noteBkgColor:          '#2e1a0a',
+      noteTextColor:         '#e2e8f0',
+      activationBorderColor: '#06b6d4',
+      activationBkgColor:    '#0a1a2e',
+      sequenceNumberColor:   '#e2e8f0',
+      fontFamily:            'Inter, system-ui, sans-serif',
+      fontSize:              '14px',
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+    sequence:  { useMaxWidth: true, actorFontFamily: 'Inter, system-ui, sans-serif' },
+    startOnLoad: true,
+    securityLevel: 'loose',
+  });
+
+  // Active nav on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navItems  = document.querySelectorAll('.nav-item');
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        navItems.forEach(n => n.classList.toggle('active', n.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => io.observe(s));
+</script>
+</body>
+</html>
