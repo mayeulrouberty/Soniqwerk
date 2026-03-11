@@ -24,3 +24,6 @@ async def health():
 
 from app.api.v1.chat import router as chat_router
 app.include_router(chat_router, prefix="/v1", tags=["chat"])
+
+from app.api.v1.documents import router as documents_router
+app.include_router(documents_router, prefix="/v1", tags=["documents"])
