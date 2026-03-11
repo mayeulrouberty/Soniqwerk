@@ -20,3 +20,7 @@ app.add_middleware(
 @app.get("/health", tags=["health"])
 async def health():
     return {"status": "ok", "version": "2.0.0"}
+
+
+from app.api.v1.chat import router as chat_router
+app.include_router(chat_router, prefix="/v1", tags=["chat"])
