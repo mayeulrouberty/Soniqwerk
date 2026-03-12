@@ -103,6 +103,29 @@ async def test_write_automation():
         mock_send.assert_called_once_with("write_automation", {"track_index": 0, "device_index": 0, "param_index": 1, "points": points})
 
 
+@pytest.mark.asyncio
+async def test_search_samples_tool():
+    with patch("app.agent.sample_library.get_library") as mock_lib:
+        mock_lib.return_value.search.return_value = [
+            {"name": "kick.wav", "path": "/samples/kick.wav"}
+        ]
+        from app.agent.tools import search_samples
+        result = await search_samples.ainvoke({"query": "kick", "limit": 10})
+        assert result["count"] == 1
+        assert result["samples"][0]["name"] == "kick.wav"
+
+
+@pytest.mark.asyncio
+async def test_load_sample_tool():
+    with patch("app.agent.tools._safe_send", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"success": True}
+        from app.agent.tools import load_sample
+        await load_sample.ainvoke({"track_index": 0, "sample_path": "/samples/kick.wav"})
+        mock_send.assert_called_once_with("load_sample", {
+            "track_index": 0, "sample_path": "/samples/kick.wav"
+        })
+
+
 def test_all_tools_list_contains_new_tools():
     from app.agent.tools import ALL_TOOLS
     tool_names = [t.name for t in ALL_TOOLS]
@@ -110,6 +133,7 @@ def test_all_tools_list_contains_new_tools():
         "set_session", "create_instrument_track", "create_audio_track",
         "delete_track", "set_track_mix", "create_midi_clip", "write_notes",
         "set_clip_name", "load_effect", "create_scene", "write_automation",
+        "search_samples", "load_sample",
     ]:
         assert expected in tool_names, f"Missing tool: {expected}"
-    assert len(ALL_TOOLS) == 17
+    assert len(ALL_TOOLS) == 19

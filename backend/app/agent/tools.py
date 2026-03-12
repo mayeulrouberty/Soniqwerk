@@ -310,6 +310,41 @@ async def write_automation(
     })
 
 
+# ── Sample library ────────────────────────────────────────────────────────────
+
+@tool
+async def search_samples(query: str, limit: int = 10) -> dict:
+    """Search the local sample library by filename keyword.
+
+    Returns a list of matching samples with their full file paths.
+    Use load_sample() to load a result into a track's Simpler or Sampler device.
+
+    Args:
+        query: Search keyword, e.g. "kick", "snare 909", "amen break", "bass 808"
+        limit: Maximum results to return (default 10)
+    """
+    from app.agent.sample_library import get_library
+    results = get_library().search(query, limit)
+    return {"samples": results, "count": len(results)}
+
+
+@tool
+async def load_sample(track_index: int, sample_path: str) -> dict:
+    """Load a sample file into the instrument on a track (Simpler or Sampler).
+
+    The track must already have a Simpler or Sampler device loaded.
+    Get sample_path from search_samples() results.
+
+    Args:
+        track_index: 0-based track index
+        sample_path: Absolute path to the audio file (from search_samples results)
+    """
+    return await _safe_send("load_sample", {
+        "track_index": track_index,
+        "sample_path": sample_path,
+    })
+
+
 # Export all tools as a list for the agent
 ALL_TOOLS = [
     # Original 6
@@ -331,4 +366,7 @@ ALL_TOOLS = [
     load_effect,
     create_scene,
     write_automation,
+    # C3 — Sample library
+    search_samples,
+    load_sample,
 ]
