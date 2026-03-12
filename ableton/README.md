@@ -134,14 +134,35 @@ This means the backend received a command that isn't recognized. Verify:
 - The backend is up to date with the latest LOM tool implementations
 - The agent query is valid
 
+## SONIQWERK Device (C2)
+
+The `SONIQWERK.amxd` device lets you control the AI agent directly inside Ableton — no browser needed.
+
+### Install
+
+1. Start the Soniqwerk backend: `./run.sh`
+2. In Ableton Live, drag `ableton/SONIQWERK.amxd` onto any track
+3. The device opens in the device panel (800×240px)
+4. The status dot turns green when connected to the backend
+5. Type a command and press Enter
+
+### Requirements
+
+- Ableton Live 11 or 12 with Max for Live
+- Soniqwerk backend running on `localhost:8000`
+- All three files must be in the same folder: `SONIQWERK.amxd`, `SONIQWERK_bridge.js`, `SONIQWERK_ui.js`
+
+---
+
 ## File Structure
 
 ```
 ableton/
-├── SONIQWERK_bridge.js      # Node.js WebSocket client and LOM interface
+├── SONIQWERK.amxd           # Pre-built Max for Live device (drag into Ableton)
+├── SONIQWERK_bridge.js      # Node.js WebSocket + HTTP bridge
+├── SONIQWERK_ui.js          # jsui canvas chat interface
 ├── package.json             # npm dependencies
-├── README.md                # This file
-└── [optional] SONIQWERK.amxd  # Pre-built Max for Live device (if included)
+└── README.md                # This file
 ```
 
 ## Next Steps
