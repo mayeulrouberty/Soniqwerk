@@ -8,6 +8,36 @@ const WebSocket = require("ws");
 const BACKEND_URL = "ws://localhost:8001/ws";
 const RECONNECT_DELAY_MS = 3000;
 
+// Instrument name → Live browser path mapping (Live 11 + Live 12 compatible)
+const INSTRUMENT_PATHS = {
+    "drift":      "Instruments/Drift/Drift.adv",
+    "operator":   "Instruments/Operator/Operator.adv",
+    "wavetable":  "Instruments/Wavetable/Wavetable.adv",
+    "simpler":    "Instruments/Simpler/Simpler.adv",
+    "sampler":    "Instruments/Sampler/Sampler.adv",
+    "drum rack":  "Instruments/Drum Rack/Drum Rack.adv",
+};
+
+const EFFECT_PATHS = {
+    "reverb":      "Audio Effects/Reverb/Reverb.adv",
+    "delay":       "Audio Effects/Delay/Delay.adv",
+    "compressor":  "Audio Effects/Compressor/Compressor.adv",
+    "eq eight":    "Audio Effects/EQ Eight/EQ Eight.adv",
+    "eq3":         "Audio Effects/EQ Three/EQ Three.adv",
+    "auto filter": "Audio Effects/Auto Filter/Auto Filter.adv",
+    "saturator":   "Audio Effects/Saturator/Saturator.adv",
+    "chorus":      "Audio Effects/Chorus-Ensemble/Chorus-Ensemble.adv",
+    "phaser":      "Audio Effects/Phaser-Flanger/Phaser-Flanger.adv",
+    "redux":       "Audio Effects/Redux/Redux.adv",
+    "limiter":     "Audio Effects/Limiter/Limiter.adv",
+};
+
+const COLOR_MAP = {
+    "red": 14368691, "orange": 15631116, "yellow": 14785536,
+    "green": 5537095, "blue": 4473924, "purple": 8756399,
+    "pink": 12450367, "white": 16579836, "": 0,
+};
+
 let ws = null;
 let pendingRequests = {};
 
@@ -153,6 +183,112 @@ async function handleCommand(msg) {
         } else if (action === "fire_clip") {
             const { track_index, slot_index } = params;
             await callLom(id, `live_set tracks ${track_index} clip_slots ${slot_index} clip`, "fire");
+            result = { success: true };
+
+        } else if (action === "set_session") {
+            const { bpm, time_signature, name } = params;
+            if (bpm) await setLom(id + "_bpm", "live_set", "tempo", bpm);
+            if (time_signature) {
+                const [num, den] = time_signature.split("/").map(Number);
+                await setLom(id + "_num", "live_set", "signature_numerator", num);
+                await setLom(id + "_den", "live_set", "signature_denominator", den);
+            }
+            if (name) await setLom(id + "_name", "live_set", "name", name);
+            result = { success: true };
+
+        } else if (action === "create_instrument_track") {
+            const { name, instrument, color } = params;
+            await callLom(id + "_ct", "live_set", "create_midi_track -1");
+            const trackIdx = await queryLom(id + "_tidx", "live_set tracks", "length");
+            const idx = trackIdx[0] - 1;
+            await setLom(id + "_tname", `live_set tracks ${idx}`, "name", name);
+            const instrKey = (instrument || "").toLowerCase();
+            const instrPath = INSTRUMENT_PATHS[instrKey];
+            if (instrPath) {
+                await callLom(id + "_ld", `live_set tracks ${idx}`, `load_device "${instrPath}"`);
+            }
+            if (color && COLOR_MAP[color.toLowerCase()] !== undefined) {
+                await setLom(id + "_col", `live_set tracks ${idx}`, "color", COLOR_MAP[color.toLowerCase()]);
+            }
+            result = { track_index: idx };
+
+        } else if (action === "create_audio_track") {
+            const { name, color } = params;
+            await callLom(id + "_cat", "live_set", "create_audio_track -1");
+            const trackIdx = await queryLom(id + "_atidx", "live_set tracks", "length");
+            const idx = trackIdx[0] - 1;
+            await setLom(id + "_atname", `live_set tracks ${idx}`, "name", name);
+            result = { track_index: idx };
+
+        } else if (action === "delete_track") {
+            const { track_index } = params;
+            await callLom(id, `live_set tracks ${track_index}`, "delete");
+            result = { success: true };
+
+        } else if (action === "set_track_mix") {
+            const { track_index, volume, pan, mute } = params;
+            if (volume !== undefined)
+                await setLom(id + "_vol", `live_set tracks ${track_index} mixer_device volume`, "value", volume);
+            if (pan !== undefined)
+                await setLom(id + "_pan", `live_set tracks ${track_index} mixer_device panning`, "value", pan);
+            if (mute !== undefined)
+                await setLom(id + "_mute", `live_set tracks ${track_index}`, "mute", mute ? 1 : 0);
+            result = { success: true };
+
+        } else if (action === "create_midi_clip") {
+            const { track_index, slot_index, length_bars } = params;
+            const lengthBeats = (length_bars || 2) * 4;
+            await callLom(id, `live_set tracks ${track_index} clip_slots ${slot_index}`, `create_clip ${lengthBeats}`);
+            result = { success: true };
+
+        } else if (action === "write_notes") {
+            const { track_index, slot_index, notes } = params;
+            const dictName = "soniqwerk_notes_" + id;
+            const noteDicts = notes.map(n => ({
+                pitch: n.pitch,
+                start_time: n.time,
+                duration: n.duration,
+                velocity: n.velocity,
+                mute: n.mute ? 1 : 0,
+                probability: 1.0,
+                velocity_deviation: 0,
+                release_velocity: 64,
+            }));
+            await maxApi.setDict(dictName, { notes: noteDicts });
+            await callLom(id, `live_set tracks ${track_index} clip_slots ${slot_index} clip`,
+                `set_notes_extended ${dictName}`);
+            result = { success: true, count: notes.length };
+
+        } else if (action === "set_clip_name") {
+            const { track_index, slot_index, name } = params;
+            await setLom(id, `live_set tracks ${track_index} clip_slots ${slot_index} clip`, "name", name);
+            result = { success: true };
+
+        } else if (action === "load_effect") {
+            const { track_index, effect_name, position } = params;
+            const key = (effect_name || "").toLowerCase();
+            const path = EFFECT_PATHS[key];
+            if (!path) {
+                sendError(id, `Unknown effect: ${effect_name}. Available: ${Object.keys(EFFECT_PATHS).join(", ")}`);
+                return;
+            }
+            await callLom(id, `live_set tracks ${track_index}`, `load_device "${path}"`);
+            result = { success: true };
+
+        } else if (action === "create_scene") {
+            const { name, scene_index } = params;
+            await callLom(id + "_cs", "live_set", `create_scene ${scene_index !== undefined ? scene_index : -1}`);
+            const sceneCount = await queryLom(id + "_sc", "live_set scenes", "length");
+            const idx = sceneCount[0] - 1;
+            await setLom(id + "_sn", `live_set scenes ${idx}`, "name", name);
+            result = { scene_index: idx };
+
+        } else if (action === "write_automation") {
+            const { track_index, device_index, param_index, points } = params;
+            const dictName = "soniqwerk_auto_" + id;
+            await maxApi.setDict(dictName, { automation_points: points });
+            await callLom(id, `live_set tracks ${track_index} devices ${device_index} parameters ${param_index}`,
+                `set_automation_points ${dictName}`);
             result = { success: true };
 
         } else {
