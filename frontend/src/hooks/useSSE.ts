@@ -16,6 +16,7 @@ interface UseSSEReturn {
 
 export function useSSE(): UseSSEReturn {
   const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
   const sendMessage = useCallback(
     (message: string, modelOverride?: string) => {
@@ -33,7 +34,9 @@ export function useSSE(): UseSSEReturn {
       if (abortRef.current) {
         abortRef.current.abort();
       }
-      abortRef.current = new AbortController();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const myRequestId = ++requestIdRef.current;
 
       const body = JSON.stringify({
         message,
@@ -48,7 +51,7 @@ export function useSSE(): UseSSEReturn {
           "X-API-Key": getApiKey(),
         },
         body,
-        signal: abortRef.current.signal,
+        signal: controller.signal,
       })
         .then(async (response) => {
           if (!response.ok) {
@@ -60,6 +63,7 @@ export function useSSE(): UseSSEReturn {
 
           const decoder = new TextDecoder();
           let buffer = "";
+          let eventType = "";
 
           while (true) {
             const { done, value } = await reader.read();
@@ -69,8 +73,6 @@ export function useSSE(): UseSSEReturn {
             const lines = buffer.split("\n");
             // Keep the last potentially incomplete line in buffer
             buffer = lines.pop() ?? "";
-
-            let eventType = "";
             for (const line of lines) {
               if (line.startsWith("event: ")) {
                 eventType = line.slice(7).trim();
@@ -93,7 +95,11 @@ export function useSSE(): UseSSEReturn {
           useChatStore.getState().setError(assistantId, msg);
         })
         .finally(() => {
-          useUiStore.getState().setStreaming(false);
+          // Only clear streaming if this is still the active request.
+          // If requestIdRef has advanced, a newer sendMessage() superseded us.
+          if (requestIdRef.current === myRequestId) {
+            useUiStore.getState().setStreaming(false);
+          }
         });
     },
     []
