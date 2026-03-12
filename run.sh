@@ -36,6 +36,11 @@ command -v python3 >/dev/null 2>&1 || die "python3 not found. Install Python 3.9
 command -v node    >/dev/null 2>&1 || die "node not found. Install Node.js 18+ from https://nodejs.org"
 command -v docker  >/dev/null 2>&1 || warn "docker not found — skipping infrastructure (postgres/redis/chromadb)"
 
+# macOS: some packages (chromadb, asyncpg) need Xcode Command Line Tools
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    xcode-select -p >/dev/null 2>&1 || warn "Xcode Command Line Tools not found. Run: xcode-select --install"
+fi
+
 PYTHON=python3
 
 # ── 2. Backend virtual environment ─────────────────────────────────────────
@@ -46,8 +51,9 @@ if [ ! -d "backend/venv" ]; then
 fi
 source backend/venv/bin/activate
 
-log "Installing backend dependencies..."
-pip install -q -r backend/requirements.txt
+log "Installing backend dependencies (first run may take a few minutes)..."
+pip install --upgrade pip -q
+pip install -r backend/requirements.txt
 
 # ── 3. Check .env files ─────────────────────────────────────────────────────
 if [ ! -f "backend/.env" ]; then
@@ -103,7 +109,7 @@ cd "$SCRIPT_DIR"
 log "Installing frontend dependencies..."
 cd frontend
 if [ ! -d "node_modules" ]; then
-    npm install --silent
+    npm install
 fi
 
 # ── 10. Start frontend ──────────────────────────────────────────────────────
