@@ -8,7 +8,7 @@ Every LOM path used here is compatible with both Live 11 and Live 12.
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from typing import List, Optional
 
 from langchain_core.tools import tool
 
@@ -115,12 +115,220 @@ async def fire_clip(track_index: int, slot_index: int) -> dict:
     })
 
 
+# ── Session ─────────────────────────────────────────────────────────────────
+
+@tool
+async def set_session(bpm: float, time_signature: str = "4/4", name: str = "") -> dict:
+    """Set session-level properties: tempo (BPM), time signature, and project name.
+
+    Args:
+        bpm: Tempo in beats per minute (e.g. 174 for DnB, 135 for Techno).
+        time_signature: Time signature string, e.g. "4/4", "3/4", "6/8".
+        name: Optional project name to set.
+    """
+    return await _safe_send("set_session", {"bpm": bpm, "time_signature": time_signature, "name": name})
+
+
+# ── Tracks ───────────────────────────────────────────────────────────────────
+
+@tool
+async def create_instrument_track(name: str, instrument: str, color: str = "") -> dict:
+    """Create a new MIDI track, load an instrument, and set name and color.
+
+    Args:
+        name: Track name (e.g. "Reese Bass", "Amen Break").
+        instrument: Instrument to load, e.g. "Drift", "Operator", "Wavetable", "Simpler", "Sampler", "Drum Rack".
+        color: Optional color hint (e.g. "blue", "orange", "green").
+    Returns:
+        Dict with track_index of the newly created track.
+    """
+    return await _safe_send("create_instrument_track", {"name": name, "instrument": instrument, "color": color})
+
+
+@tool
+async def create_audio_track(name: str, color: str = "") -> dict:
+    """Create a new audio track with a name and optional color.
+
+    Args:
+        name: Track name (e.g. "Vocals", "Guitar").
+        color: Optional color hint.
+    Returns:
+        Dict with track_index of the newly created track.
+    """
+    return await _safe_send("create_audio_track", {"name": name, "color": color})
+
+
+@tool
+async def delete_track(track_index: int) -> dict:
+    """Delete a track by its index.
+
+    Args:
+        track_index: 0-based index of the track to delete.
+    """
+    return await _safe_send("delete_track", {"track_index": track_index})
+
+
+@tool
+async def set_track_mix(
+    track_index: int,
+    volume: float = 0.85,
+    pan: float = 0.0,
+    mute: bool = False,
+) -> dict:
+    """Set volume, panning and mute state for a track in one call.
+
+    Args:
+        track_index: 0-based track index.
+        volume: Volume level 0.0-1.0 (0.85 approx -3dB, good default).
+        pan: Panning -1.0 (left) to 1.0 (right). 0.0 = center.
+        mute: Whether to mute the track.
+    """
+    return await _safe_send("set_track_mix", {
+        "track_index": track_index,
+        "volume": volume,
+        "pan": pan,
+        "mute": mute,
+    })
+
+
+# ── Clips & MIDI ─────────────────────────────────────────────────────────────
+
+@tool
+async def create_midi_clip(track_index: int, slot_index: int, length_bars: int = 2) -> dict:
+    """Create an empty MIDI clip in a clip slot.
+
+    Args:
+        track_index: 0-based track index.
+        slot_index: 0-based clip slot index.
+        length_bars: Clip length in bars (default 2). Assumes 4/4 time.
+    """
+    return await _safe_send("create_midi_clip", {
+        "track_index": track_index,
+        "slot_index": slot_index,
+        "length_bars": length_bars,
+    })
+
+
+@tool
+async def write_notes(track_index: int, slot_index: int, notes: List[dict]) -> dict:
+    """Write MIDI notes into an existing clip, replacing any existing notes.
+
+    Each note dict must have:
+      - pitch (int): MIDI note 0-127. C3=48, C4=60, A4=69.
+      - time (float): Start position in beats. 0.0=bar start, 0.25=16th, 0.5=8th, 1.0=quarter.
+      - duration (float): Duration in beats.
+      - velocity (int): 1-127. 64=medium, 100=strong.
+      - mute (bool, optional): Whether note is muted.
+
+    Args:
+        track_index: 0-based track index.
+        slot_index: 0-based clip slot index (clip must already exist).
+        notes: List of note dicts.
+    """
+    return await _safe_send("write_notes", {
+        "track_index": track_index,
+        "slot_index": slot_index,
+        "notes": notes,
+    })
+
+
+@tool
+async def set_clip_name(track_index: int, slot_index: int, name: str) -> dict:
+    """Rename a clip.
+
+    Args:
+        track_index: 0-based track index.
+        slot_index: 0-based clip slot index.
+        name: New clip name (e.g. "Drop 1 Bass", "Intro Pad").
+    """
+    return await _safe_send("set_clip_name", {
+        "track_index": track_index,
+        "slot_index": slot_index,
+        "name": name,
+    })
+
+
+# ── Devices & Effects ─────────────────────────────────────────────────────────
+
+@tool
+async def load_effect(track_index: int, effect_name: str, position: int = -1) -> dict:
+    """Load an audio effect onto a track's device chain.
+
+    Args:
+        track_index: 0-based track index.
+        effect_name: Effect name, e.g. "Reverb", "Delay", "Compressor", "EQ Eight",
+                     "Auto Filter", "Saturator", "Chorus", "Phaser", "Redux".
+        position: Position in device chain. -1 = append at end (default).
+    """
+    return await _safe_send("load_effect", {
+        "track_index": track_index,
+        "effect_name": effect_name,
+        "position": position,
+    })
+
+
+# ── Arrangement ───────────────────────────────────────────────────────────────
+
+@tool
+async def create_scene(name: str, scene_index: int = -1) -> dict:
+    """Create a new scene (row in session view) with a name.
+
+    Args:
+        name: Scene name (e.g. "Intro", "Drop 1", "Break", "Outro").
+        scene_index: Position to insert. -1 = append at end.
+    Returns:
+        Dict with scene_index of the created scene.
+    """
+    return await _safe_send("create_scene", {"name": name, "scene_index": scene_index})
+
+
+# ── Automation ────────────────────────────────────────────────────────────────
+
+@tool
+async def write_automation(
+    track_index: int,
+    device_index: int,
+    param_index: int,
+    points: List[dict],
+) -> dict:
+    """Write an automation envelope for a device parameter.
+
+    Each point: {"time": <beat_position>, "value": <0.0-1.0>}.
+    Points are interpolated linearly.
+
+    Args:
+        track_index: 0-based track index.
+        device_index: 0-based device index on that track.
+        param_index: 0-based parameter index on that device.
+        points: List of automation points, e.g. [{"time": 0.0, "value": 0.1}, {"time": 8.0, "value": 0.9}]
+    """
+    return await _safe_send("write_automation", {
+        "track_index": track_index,
+        "device_index": device_index,
+        "param_index": param_index,
+        "points": points,
+    })
+
+
 # Export all tools as a list for the agent
 ALL_TOOLS = [
+    # Original 6
     get_session_info,
     get_tracks,
     get_track_devices,
     set_parameter,
     get_clips,
     fire_clip,
+    # New 11
+    set_session,
+    create_instrument_track,
+    create_audio_track,
+    delete_track,
+    set_track_mix,
+    create_midi_clip,
+    write_notes,
+    set_clip_name,
+    load_effect,
+    create_scene,
+    write_automation,
 ]

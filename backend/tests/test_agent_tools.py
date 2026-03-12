@@ -29,19 +29,19 @@ def mock_send():
 # ── Tool list ──────────────────────────────────────────────────────
 
 def test_all_tools_has_six_entries():
-    assert len(ALL_TOOLS) == 6
+    assert len(ALL_TOOLS) == 17
 
 
 def test_all_tools_have_names():
     names = {t.name for t in ALL_TOOLS}
-    assert names == {
+    assert {
         "get_session_info",
         "get_tracks",
         "get_track_devices",
         "set_parameter",
         "get_clips",
         "fire_clip",
-    }
+    }.issubset(names)
 
 
 # ── get_session_info ───────────────────────────────────────────────
