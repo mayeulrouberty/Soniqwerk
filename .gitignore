@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# Environment — NEVER commit real credentials
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Databases & build artifacts
+backend/data/chroma_db/
+*.db
+*.sqlite3
+
+# System
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test artifacts
+coverage/
