@@ -1,26 +1,26 @@
 # Soniqwerk
 
-Chat avec une base de connaissances locale sur la production musicale, ou parle directement à Ableton Live.
+Chat with a local knowledge base about music production, or talk directly to Ableton Live.
 
-Tu peux uploader des PDFs (manuels de plugins, livres de sound design, n'importe quoi) et poser des questions dessus via RAG. Il y a aussi un agent LangChain connecté à Ableton via un bridge Max for Live — il peut créer des tracks, charger des instruments, écrire des clips MIDI, automatiser des paramètres, gérer des presets et chercher dans ta sample library, tout ça depuis un prompt texte.
+Upload PDFs (plugin manuals, sound design books, whatever you want to query) and run RAG queries against them. There's also a LangChain agent connected to Ableton through a Max for Live bridge — it can create tracks, load instruments, write MIDI clips, automate parameters, manage device presets and search your sample library, all from a text prompt.
 
-## Ce qu'il y a dedans
+## What's in here
 
-- **Chat RAG** — les PDFs rentrent, les réponses sortent avec leurs sources. Fonctionne avec Claude, GPT-4o ou des modèles locaux via Ollama.
-- **Agent Ableton** — agent ReAct avec ~23 outils LOM. Gestion des tracks, écriture MIDI, contrôle des devices, scènes, automation, search de samples, snapshots de presets.
-- **Device Max for Live** — glisse `SONIQWERK.amxd` sur n'importe quelle track pour avoir un panel de chat intégré sans quitter Ableton.
-- **Bridge WebSocket** — la colle entre le backend FastAPI et le node.script M4L.
+- **RAG chat** — PDFs in, answers out, with source citations. Works with Claude, GPT-4o, or local models via Ollama.
+- **Ableton agent** — ReAct agent with ~23 LOM tools. Track management, MIDI writing, device control, scenes, automation, sample search/load, device preset snapshots.
+- **Max for Live device** — drop `SONIQWERK.amxd` on any track to get a built-in chat panel without leaving Ableton.
+- **WebSocket bridge** — the glue between the FastAPI backend and the M4L node.script.
 
 ## Stack
 
-| Couche | Tech |
-|--------|------|
+| Layer | Tech |
+|-------|------|
 | Frontend | React 18 + TypeScript + Vite + Tailwind |
 | Backend | FastAPI + SSE streaming |
 | RAG | LangChain + ChromaDB + text-embedding-3-large |
 | LLM | Claude / GPT-4o / Ollama |
 | Queue | Celery + Redis |
-| BDD | PostgreSQL + SQLAlchemy async |
+| DB | PostgreSQL + SQLAlchemy async |
 | M4L | node.script + WebSocket + jsui |
 
 ## Architecture
@@ -39,26 +39,26 @@ Browser (:5173)          FastAPI (:8000)           Celery
                       Ableton Live 11/12
 ```
 
-## Prérequis
+## Requirements
 
 - Python 3.9+
 - Node.js 18+
-- Docker (pour Postgres + Redis)
-- Ableton Live 11 ou 12 avec Max for Live (seulement pour l'agent)
+- Docker (for Postgres + Redis)
+- Ableton Live 11 or 12 with Max for Live (only needed for the agent)
 
-## Installation
+## Setup
 
 ```bash
 git clone https://github.com/mayeulrouberty/Soniqwerk.git
 cd Soniqwerk
 
 cp backend/.env.example backend/.env
-# remplir OPENAI_API_KEY et API_SECRET_KEY
+# fill in OPENAI_API_KEY and API_SECRET_KEY
 
 cp frontend/.env.example frontend/.env
-# VITE_API_KEY doit correspondre à API_SECRET_KEY
+# set VITE_API_KEY to match API_SECRET_KEY
 
-# démarrer postgres + redis
+# start postgres + redis
 docker-compose up -d
 
 # migrations
@@ -67,49 +67,49 @@ cd backend && python -m alembic upgrade head
 # backend
 uvicorn app.main:app --reload --port 8000
 
-# worker celery (terminal séparé)
+# celery worker (separate terminal)
 celery -A workers.celery_app worker --loglevel=info
 
-# bridge WS pour ableton (terminal séparé, optionnel)
+# ws bridge for ableton (separate terminal, optional)
 python -m ws_bridge
 
-# frontend (terminal séparé)
+# frontend (separate terminal)
 cd ../frontend && npm install && npm run dev
 ```
 
-Ouvrir http://localhost:5173.
+Open http://localhost:5173.
 
-## Setup Ableton
+## Ableton setup
 
-Voir [ableton/README.md](ableton/README.md).
+See [ableton/README.md](ableton/README.md).
 
-## Variables d'environnement
+## Environment variables
 
-Les principales — liste complète dans `backend/.env.example` :
+Key ones — full list in `backend/.env.example`:
 
-| Variable | Rôle |
-|----------|------|
-| `OPENAI_API_KEY` | Requis |
-| `API_SECRET_KEY` | Header d'auth — mettre quelque chose de solide |
-| `DATABASE_URL` | Connexion Postgres |
-| `ANTHROPIC_API_KEY` | Optionnel, active Claude |
-| `SAMPLE_PATHS` | Dossiers séparés par `:` pour la recherche de samples |
+| Variable | What it does |
+|----------|-------------|
+| `OPENAI_API_KEY` | Required |
+| `API_SECRET_KEY` | Auth header — set something strong |
+| `DATABASE_URL` | Postgres connection string |
+| `ANTHROPIC_API_KEY` | Optional, enables Claude |
+| `SAMPLE_PATHS` | Colon-separated folders to index for sample search |
 
 ## Structure
 
 ```
 Soniqwerk/
 ├── backend/
-│   ├── app/           # routes, RAG, agent, config
-│   ├── workers/       # tâches celery
-│   ├── ws_bridge/     # bridge websocket (port 8001)
-│   └── tests/         # tests unitaires (141 passants)
+│   ├── app/           # routes, RAG engine, agent, config
+│   ├── workers/       # celery tasks
+│   ├── ws_bridge/     # websocket bridge (port 8001)
+│   └── tests/         # unit tests (141 passing)
 ├── frontend/
-│   └── src/           # composants React, hooks, stores
-├── ableton/           # device M4L + bridge + scripts ui
-└── docs/              # specs et plans d'implémentation
+│   └── src/           # React components, hooks, stores
+├── ableton/           # M4L device + bridge + ui scripts
+└── docs/              # specs and implementation plans
 ```
 
-## Licence
+## License
 
 MIT
