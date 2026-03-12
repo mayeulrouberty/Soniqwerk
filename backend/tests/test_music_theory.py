@@ -48,7 +48,8 @@ def test_get_scale_notes_pentatonic_minor():
 def test_scales_dict_contains_expected_scales():
     for scale in ["major", "natural_minor", "dorian", "phrygian", "lydian",
                   "mixolydian", "locrian", "harmonic_minor", "melodic_minor",
-                  "pentatonic_major", "pentatonic_minor", "blues"]:
+                  "pentatonic_major", "pentatonic_minor", "blues",
+                  "diminished", "whole_tone", "chromatic"]:
         assert scale in SCALES, f"Missing scale: {scale}"
 
 
