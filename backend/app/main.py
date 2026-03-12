@@ -27,3 +27,6 @@ app.include_router(chat_router, prefix="/v1", tags=["chat"])
 
 from app.api.v1.documents import router as documents_router
 app.include_router(documents_router, prefix="/v1", tags=["documents"])
+
+from app.api.v1 import agent as agent_module
+app.include_router(agent_module.router, prefix="/v1", tags=["agent"])
