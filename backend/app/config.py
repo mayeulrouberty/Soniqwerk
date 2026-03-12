@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     # Ableton (Phase 2)
     ableton_ws_port: int = Field(8001)
 
+    # Sample library
+    sample_paths: str = Field("", description="Colon-separated absolute folder paths to scan for audio files")
+
+    @property
+    def sample_path_list(self) -> List[str]:
+        return [p.strip() for p in self.sample_paths.split(":") if p.strip()]
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
