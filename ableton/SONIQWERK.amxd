@@ -1,0 +1,90 @@
+{
+	"patcher" : 	{
+		"fileversion" : 1,
+		"appversion" : 		{
+			"major" : 8,
+			"minor" : 6,
+			"revision" : 2,
+			"architecture" : "x64",
+			"modernui" : 1
+		},
+		"classnamespace" : "midi.effect",
+		"rect" : [ 100.0, 100.0, 900.0, 400.0 ],
+		"bglocked" : 0,
+		"openrect" : [ 0.0, 0.0, 0.0, 0.0 ],
+		"openinpresentation" : 1,
+		"default_fontsize" : 12.0,
+		"default_fontface" : 0,
+		"default_fontname" : "Arial",
+		"gridonopen" : 1,
+		"gridsize" : [ 15.0, 15.0 ],
+		"gridsnaponopen" : 1,
+		"objectsnaponopen" : 1,
+		"statusbarvisible" : 2,
+		"toolbarvisible" : 1,
+		"lefttoolbarpinned" : 0,
+		"toptoolbarpinned" : 0,
+		"righttoolbarpinned" : 0,
+		"bottomtoolbarpinned" : 0,
+		"devicewidth" : 800.0,
+		"deviceheight" : 240.0,
+		"description" : "SONIQWERK — AI Music Production Assistant",
+		"digest" : "",
+		"tags" : "SONIQWERK AI Ableton",
+		"style" : "",
+		"subpatcher_template" : "",
+		"boxes" : [ 			{
+				"box" : 				{
+					"id" : "obj-1",
+					"maxclass" : "newobj",
+					"text" : "node.script SONIQWERK_bridge.js",
+					"numinlets" : 1,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 20.0, 20.0, 230.0, 22.0 ]
+				}
+			},
+			{
+				"box" : 				{
+					"id" : "obj-2",
+					"maxclass" : "jsui",
+					"numinlets" : 1,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 20.0, 60.0, 800.0, 240.0 ],
+					"presentation" : 1,
+					"presentation_rect" : [ 0.0, 0.0, 800.0, 240.0 ],
+					"file" : "SONIQWERK_ui.js"
+				}
+			}
+		],
+		"lines" : [ 			{
+				"patchline" : 				{
+					"source" : [ "obj-2", 0 ],
+					"destination" : [ "obj-1", 0 ],
+					"midpoints" : [  ]
+				}
+			},
+			{
+				"patchline" : 				{
+					"source" : [ "obj-1", 0 ],
+					"destination" : [ "obj-2", 0 ],
+					"midpoints" : [  ]
+				}
+			}
+		],
+		"dependency_cache" : [ 			{
+				"name" : "SONIQWERK_bridge.js",
+				"bootpath" : ".",
+				"type" : "TEXT",
+				"implicit" : 1
+			},
+			{
+				"name" : "SONIQWERK_ui.js",
+				"bootpath" : ".",
+				"type" : "TEXT",
+				"implicit" : 1
+			}
+		]
+	}
+}
