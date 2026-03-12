@@ -283,6 +283,12 @@ async function handleCommand(msg) {
             await setLom(id + "_sn", `live_set scenes ${idx}`, "name", name);
             result = { scene_index: idx };
 
+        } else if (action === "load_sample") {
+            const { track_index, sample_path } = params;
+            await callLom(id, `live_set tracks ${track_index} devices 0`,
+                `load_sample "${sample_path}"`);
+            result = { success: true };
+
         } else if (action === "write_automation") {
             const { track_index, device_index, param_index, points } = params;
             const dictName = "soniqwerk_auto_" + id;
