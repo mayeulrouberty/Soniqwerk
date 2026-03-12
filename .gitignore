@@ -45,3 +45,6 @@ npm-debug.log*
 
 # Test artifacts
 coverage/
+
+# User presets (local only)
+backend/data/presets/*.json
