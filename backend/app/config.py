@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", description="OpenAI API key")
     openai_embedding_model: str = Field("text-embedding-3-large")
     anthropic_api_key: str = Field("", description="Anthropic API key (optional)")
+    google_api_key: str = Field("", description="Google AI API key (optional, enables Gemini)")
 
     # Auth
     api_secret_key: str = Field(default="", description="Shared API key for X-API-Key header")

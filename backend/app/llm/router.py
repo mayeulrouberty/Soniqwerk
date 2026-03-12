@@ -5,13 +5,14 @@ from typing import AsyncIterator, Optional, List, Dict, Any
 
 from app.config import settings
 from app.llm.prompts import build_system_prompt, build_rag_context
-from app.llm.providers import stream_gpt4o, stream_claude, stream_ollama
+from app.llm.providers import stream_gpt4o, stream_claude, stream_gemini, stream_ollama
 
 
 class ModelChoice(str, Enum):
     CLAUDE = "claude-sonnet-4-6"
     GPT4O = "gpt-4o"
     GPT4O_MINI = "gpt-4o-mini"
+    GEMINI = "gemini-2.0-flash"
     OLLAMA = "ollama"
 
 
@@ -39,34 +40,66 @@ _FAQ_PATTERNS = re.compile(
 )
 
 
+def available_providers() -> set:
+    """Returns the set of ModelChoice values that have API keys configured."""
+    providers = {ModelChoice.OLLAMA}  # always available (local, no key needed)
+    if settings.openai_api_key:
+        providers.add(ModelChoice.GPT4O)
+        providers.add(ModelChoice.GPT4O_MINI)
+    if settings.anthropic_api_key:
+        providers.add(ModelChoice.CLAUDE)
+    if settings.google_api_key:
+        providers.add(ModelChoice.GEMINI)
+    return providers
+
+
+def _pick(preferences: list, available: set) -> ModelChoice:
+    """Return the first available choice from a preference list."""
+    for choice in preferences:
+        if choice in available:
+            return choice
+    return ModelChoice.OLLAMA
+
+
 def classify_query(query: str) -> ModelChoice:
     """
     Lightweight classifier: regex → ModelChoice.
-    No LLM call — avoids extra latency and cost.
+    Only considers providers that have API keys configured.
 
-    Priority:
-    1. Offline mode → OLLAMA
-    2. Short FAQ (< 30 tokens, FAQ pattern) → GPT4O_MINI
-    3. Creative (texture, timbre, vibe) → CLAUDE
-    4. Technical (routing, LUFS, params) → GPT4O
-    5. Default → GPT4O
+    Priority per query type:
+    - FAQ (short)  : GPT-4o-mini > Gemini > Claude > GPT-4o
+    - Creative     : Claude > Gemini > GPT-4o > GPT-4o-mini
+    - Technical    : GPT-4o > Gemini > Claude > GPT-4o-mini
+    - Default      : GPT-4o > Gemini > Claude > GPT-4o-mini
     """
     if settings.llm_provider == "ollama":
         return ModelChoice.OLLAMA
 
+    available = available_providers()
     token_count = len(query.split())
 
     if token_count < 30 and _FAQ_PATTERNS.search(query):
-        return ModelChoice.GPT4O_MINI
+        return _pick(
+            [ModelChoice.GPT4O_MINI, ModelChoice.GEMINI, ModelChoice.CLAUDE, ModelChoice.GPT4O],
+            available,
+        )
 
     if _CREATIVE_PATTERNS.search(query):
-        return ModelChoice.CLAUDE
+        return _pick(
+            [ModelChoice.CLAUDE, ModelChoice.GEMINI, ModelChoice.GPT4O, ModelChoice.GPT4O_MINI],
+            available,
+        )
 
     if _TECHNICAL_PATTERNS.search(query):
-        return ModelChoice.GPT4O
+        return _pick(
+            [ModelChoice.GPT4O, ModelChoice.GEMINI, ModelChoice.CLAUDE, ModelChoice.GPT4O_MINI],
+            available,
+        )
 
-    # Default: GPT-4o for general production questions
-    return ModelChoice.GPT4O
+    return _pick(
+        [ModelChoice.GPT4O, ModelChoice.GEMINI, ModelChoice.CLAUDE, ModelChoice.GPT4O_MINI],
+        available,
+    )
 
 
 async def stream_response(
@@ -90,13 +123,14 @@ async def stream_response(
     messages = history + [{"role": "user", "content": query}]
 
     async def _stream_provider() -> AsyncIterator[str]:
-        # Timeout enforcement is handled at the HTTP client level (OpenAI/Anthropic SDKs).
-        # TimeoutError can still be raised and caught in the outer try/except.
         if model == ModelChoice.CLAUDE:
             async for chunk in stream_claude(messages, system):
                 yield chunk
         elif model in (ModelChoice.GPT4O, ModelChoice.GPT4O_MINI):
             async for chunk in stream_gpt4o(model.value, messages, system):
+                yield chunk
+        elif model == ModelChoice.GEMINI:
+            async for chunk in stream_gemini(messages, system):
                 yield chunk
         elif model == ModelChoice.OLLAMA:
             async for chunk in stream_ollama(messages, system):

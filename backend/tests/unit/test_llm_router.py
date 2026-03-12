@@ -1,36 +1,78 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from app.llm.router import classify_query, ModelChoice
+from app.llm.router import classify_query, available_providers, ModelChoice
+
+# All providers available by default in tests
+_ALL = {ModelChoice.CLAUDE, ModelChoice.GPT4O, ModelChoice.GPT4O_MINI, ModelChoice.GEMINI, ModelChoice.OLLAMA}
 
 
 def test_classify_creative_query_returns_claude():
-    result = classify_query("Comment créer une ambiance mystérieuse avec du reverb ?")
-    assert result == ModelChoice.CLAUDE
+    with patch("app.llm.router.available_providers", return_value=_ALL):
+        assert classify_query("Comment créer une ambiance mystérieuse avec du reverb ?") == ModelChoice.CLAUDE
 
 
 def test_classify_technical_query_returns_gpt4o():
-    result = classify_query("Quel threshold pour le compressor sidechain sur la kick ?")
-    assert result == ModelChoice.GPT4O
+    with patch("app.llm.router.available_providers", return_value=_ALL):
+        assert classify_query("Quel threshold pour le compressor sidechain sur la kick ?") == ModelChoice.GPT4O
 
 
 def test_classify_faq_short_query_returns_mini():
-    result = classify_query("Qu'est-ce que le LUFS ?")
-    assert result == ModelChoice.GPT4O_MINI
+    with patch("app.llm.router.available_providers", return_value=_ALL):
+        assert classify_query("Qu'est-ce que le LUFS ?") == ModelChoice.GPT4O_MINI
 
 
 def test_classify_default_returns_gpt4o():
-    result = classify_query("Comment faire un drop dans ma track ?")
-    assert result == ModelChoice.GPT4O
+    with patch("app.llm.router.available_providers", return_value=_ALL):
+        assert classify_query("Comment faire un drop dans ma track ?") == ModelChoice.GPT4O
 
 
 def test_classify_wavetable_is_creative():
-    result = classify_query("Explique-moi comment utiliser wavetable synthesis dans Serum")
-    assert result == ModelChoice.CLAUDE
+    with patch("app.llm.router.available_providers", return_value=_ALL):
+        assert classify_query("Explique-moi comment utiliser wavetable synthesis dans Serum") == ModelChoice.CLAUDE
 
 
 def test_classify_routing_is_technical():
-    result = classify_query("Comment configurer le routing MIDI dans Ableton ?")
-    assert result == ModelChoice.GPT4O
+    with patch("app.llm.router.available_providers", return_value=_ALL):
+        assert classify_query("Comment configurer le routing MIDI dans Ableton ?") == ModelChoice.GPT4O
+
+
+def test_classify_falls_back_to_gemini_when_no_openai():
+    only_gemini = {ModelChoice.GEMINI, ModelChoice.OLLAMA}
+    with patch("app.llm.router.available_providers", return_value=only_gemini):
+        assert classify_query("Quel threshold pour le compressor ?") == ModelChoice.GEMINI
+
+
+def test_classify_falls_back_to_gemini_when_no_claude():
+    no_claude = {ModelChoice.GPT4O, ModelChoice.GPT4O_MINI, ModelChoice.GEMINI, ModelChoice.OLLAMA}
+    with patch("app.llm.router.available_providers", return_value=no_claude):
+        assert classify_query("Comment créer une ambiance mystérieuse ?") == ModelChoice.GEMINI
+
+
+def test_classify_falls_back_to_ollama_when_no_keys():
+    with patch("app.llm.router.available_providers", return_value={ModelChoice.OLLAMA}):
+        assert classify_query("Anything") == ModelChoice.OLLAMA
+
+
+def test_available_providers_only_ollama_when_no_keys():
+    with patch("app.llm.router.settings") as mock_settings:
+        mock_settings.llm_provider = "multi"
+        mock_settings.openai_api_key = ""
+        mock_settings.anthropic_api_key = ""
+        mock_settings.google_api_key = ""
+        result = available_providers()
+    assert result == {ModelChoice.OLLAMA}
+
+
+def test_available_providers_all_keys_set():
+    with patch("app.llm.router.settings") as mock_settings:
+        mock_settings.openai_api_key = "sk-test"
+        mock_settings.anthropic_api_key = "sk-ant-test"
+        mock_settings.google_api_key = "AIza-test"
+        result = available_providers()
+    assert ModelChoice.GPT4O in result
+    assert ModelChoice.CLAUDE in result
+    assert ModelChoice.GEMINI in result
+    assert ModelChoice.OLLAMA in result
 
 
 @pytest.mark.asyncio

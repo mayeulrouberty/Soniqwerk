@@ -6,6 +6,7 @@ from app.config import settings
 
 _openai_client: Optional[AsyncOpenAI] = None
 _anthropic_client: Optional[AsyncAnthropic] = None
+_gemini_client: Optional[AsyncOpenAI] = None
 
 
 def _get_openai() -> AsyncOpenAI:
@@ -20,6 +21,16 @@ def _get_anthropic() -> AsyncAnthropic:
     if _anthropic_client is None:
         _anthropic_client = AsyncAnthropic(api_key=settings.anthropic_api_key)
     return _anthropic_client
+
+
+def _get_gemini() -> AsyncOpenAI:
+    global _gemini_client
+    if _gemini_client is None:
+        _gemini_client = AsyncOpenAI(
+            api_key=settings.google_api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+    return _gemini_client
 
 
 async def stream_gpt4o(
@@ -57,6 +68,26 @@ async def stream_claude(
     ) as stream:
         async for text in stream.text_stream:
             yield text
+
+
+async def stream_gemini(
+    messages: list[dict],
+    system: str,
+    model: str = "gemini-2.0-flash",
+) -> AsyncIterator[str]:
+    """Stream from Google Gemini via OpenAI-compatible API. Yields text chunks."""
+    client = _get_gemini()
+    full_messages = [{"role": "system", "content": system}] + messages
+    async with client.chat.completions.create(
+        model=model,
+        messages=full_messages,
+        stream=True,
+        max_tokens=2048,
+    ) as stream:
+        async for chunk in stream:
+            delta = chunk.choices[0].delta
+            if delta and delta.content:
+                yield delta.content
 
 
 async def stream_ollama(
