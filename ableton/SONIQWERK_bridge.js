@@ -289,6 +289,28 @@ async function handleCommand(msg) {
                 `load_sample "${sample_path}"`);
             result = { success: true };
 
+        } else if (action === "get_device_parameters") {
+            const { track_index, device_index } = params;
+            const devicePath = `live_set tracks ${track_index} devices ${device_index}`;
+            const paramCountRes = await queryLom(id + "_pc", devicePath + " parameters", "length");
+            const count = parseInt(paramCountRes[0]) || 0;
+            const paramList = [];
+            for (let i = 0; i < count; i++) {
+                const paramPath = `${devicePath} parameters ${i}`;
+                const nameRes  = await queryLom(id + `_pn${i}`, paramPath, "name");
+                const valRes   = await queryLom(id + `_pv${i}`, paramPath, "value");
+                const minRes   = await queryLom(id + `_pm${i}`, paramPath, "min");
+                const maxRes   = await queryLom(id + `_px${i}`, paramPath, "max");
+                paramList.push({
+                    index: i,
+                    name:  nameRes[0],
+                    value: valRes[0],
+                    min:   minRes[0],
+                    max:   maxRes[0],
+                });
+            }
+            result = { params: paramList };
+
         } else if (action === "write_automation") {
             const { track_index, device_index, param_index, points } = params;
             const dictName = "soniqwerk_auto_" + id;
