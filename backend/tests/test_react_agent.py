@@ -5,12 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.mark.asyncio
 async def test_create_agent_returns_executor():
     mock_llm = MagicMock()
-    with patch("app.agent.react_agent.ChatOpenAI", return_value=mock_llm):
+    with patch("app.agent.react_agent.ChatOpenAI", return_value=mock_llm) as mock_cls:
         from app.agent.react_agent import create_agent
         executor = create_agent()
     assert executor is not None
     assert executor.max_iterations == 10
     assert executor.return_intermediate_steps is True
+    mock_cls.assert_called_once()
 
 
 @pytest.mark.asyncio

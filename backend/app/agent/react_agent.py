@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from langchain.agents import AgentExecutor, create_react_agent
@@ -9,8 +8,6 @@ from langchain_openai import ChatOpenAI
 
 from app.agent.tools import ALL_TOOLS
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are SONIQWERK, an AI assistant that controls Ableton Live via a WebSocket bridge.
 You support Ableton Live 11 and Live 12. Use the available tools to inspect and manipulate the Live session.
