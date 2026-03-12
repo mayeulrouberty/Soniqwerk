@@ -18,9 +18,14 @@ function PluginsPlaceholder() {
 function AbletonPlaceholder() {
   return (
     <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <h2 className="font-display text-3xl text-muted mb-2">Ableton Link</h2>
-        <p className="text-muted text-sm">Phase 3 — WebSocket bridge to Ableton Live.</p>
+      <div className="text-center max-w-sm">
+        <h2 className="font-display text-3xl text-accent mb-3">Ableton Live</h2>
+        <p className="text-muted text-sm mb-4">
+          Connect the Max for Live device to control your session via AI.
+        </p>
+        <p className="text-xs text-muted/60 font-mono">
+          See <span className="text-accent/80">ableton/README.md</span> for setup instructions.
+        </p>
       </div>
     </div>
   );
