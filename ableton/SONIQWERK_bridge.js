@@ -334,3 +334,82 @@ async function handleCommand(msg) {
 // Start connection
 connect();
 maxApi.post("SONIQWERK bridge loaded. Connecting to " + BACKEND_URL);
+
+// ── Agent HTTP client ────────────────────────────────────────────────────────
+
+/**
+ * POST a natural language query to the Soniqwerk backend /v1/agent endpoint.
+ * Parses the SSE stream and returns the final answer text.
+ * @param {string} text - The user's query
+ * @param {string} backendUrl - e.g. "localhost:8000"
+ * @param {string} apiKey - X-API-Key header value
+ * @returns {Promise<string>} - The agent's final answer
+ */
+function sendAgentQuery(text, backendUrl, apiKey) {
+    return new Promise(function(resolve, reject) {
+        const parts = (backendUrl || "localhost:8000").split(":");
+        const hostname = parts[0] || "localhost";
+        const port = parts[1] ? parseInt(parts[1]) : 8000;
+        const body = JSON.stringify({ query: text });
+        const http = require("http");
+
+        const options = {
+            hostname: hostname,
+            port: port,
+            path: "/v1/agent",
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": apiKey || "test",
+                "Content-Length": Buffer.byteLength(body),
+            },
+        };
+
+        let finalAnswer = "";
+        const req = http.request(options, function(res) {
+            res.setEncoding("utf8");
+            res.on("data", function(chunk) {
+                chunk.split("\n").forEach(function(line) {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith("data: ")) {
+                        try {
+                            const data = JSON.parse(trimmed.slice(6));
+                            if (data.type === "done" && data.content) {
+                                finalAnswer = data.content;
+                            }
+                        } catch (e) {}
+                    }
+                });
+            });
+            res.on("end", function() {
+                resolve(finalAnswer || "Pas de réponse reçue.");
+            });
+        });
+
+        req.on("error", function(err) {
+            reject(err);
+        });
+
+        req.setTimeout(60000, function() {
+            req.destroy();
+            reject(new Error("Timeout: agent did not respond within 60s"));
+        });
+
+        req.write(body);
+        req.end();
+    });
+}
+
+// ── Max message handler for jsui agent queries ───────────────────────────────
+
+maxApi.addHandler("agent_query", async function(text, backendUrl, apiKey) {
+    try {
+        maxApi.outlet(0, "connecting");
+        const response = await sendAgentQuery(text, backendUrl, apiKey);
+        maxApi.outlet(0, "agent_response", response);
+        maxApi.outlet(0, "connected", 1);
+    } catch (err) {
+        maxApi.outlet(0, "agent_error", err.message || String(err));
+        maxApi.outlet(0, "connected", 0);
+    }
+});
