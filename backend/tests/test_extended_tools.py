@@ -126,6 +126,60 @@ async def test_load_sample_tool():
         })
 
 
+@pytest.mark.asyncio
+async def test_get_device_parameters_tool():
+    with patch("app.agent.tools._safe_send", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"params": [{"index": 0, "name": "Osc", "value": 0.5, "min": 0.0, "max": 1.0}]}
+        from app.agent.tools import get_device_parameters
+        result = await get_device_parameters.ainvoke({"track_index": 0, "device_index": 0})
+        mock_send.assert_called_once_with("get_device_parameters", {"track_index": 0, "device_index": 0})
+        assert "params" in result
+
+
+@pytest.mark.asyncio
+async def test_save_device_preset_tool():
+    params = [{"index": 0, "name": "Osc", "value": 0.5, "min": 0.0, "max": 1.0}]
+    with patch("app.agent.tools._safe_send", new_callable=AsyncMock) as mock_send:
+        mock_send.side_effect = [
+            {"params": params},
+            {"devices": [{"name": "Drift", "index": 0}]},
+        ]
+        with patch("app.agent.preset_store.save_preset", return_value="/tmp/test.json"):
+            from app.agent.tools import save_device_preset
+            result = await save_device_preset.ainvoke({
+                "name": "Test", "track_index": 0, "device_index": 0
+            })
+            assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_load_device_preset_tool():
+    preset_data = {
+        "name": "Test",
+        "params": [{"index": 0, "name": "Osc", "value": 0.5, "min": 0.0, "max": 1.0}]
+    }
+    with patch("app.agent.tools._safe_send", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"success": True}
+        with patch("app.agent.preset_store.load_preset", return_value=preset_data):
+            from app.agent.tools import load_device_preset
+            result = await load_device_preset.ainvoke({
+                "name": "Test", "track_index": 1, "device_index": 0
+            })
+            assert result["success"] is True
+            assert result["params_restored"] == 1
+
+
+@pytest.mark.asyncio
+async def test_list_device_presets_tool():
+    with patch("app.agent.preset_store.list_presets", return_value=[
+        {"name": "Test", "device_name": "Drift", "created_at": "2026-03-12"}
+    ]):
+        from app.agent.tools import list_device_presets
+        result = await list_device_presets.ainvoke({})
+        assert result["count"] == 1
+        assert result["presets"][0]["name"] == "Test"
+
+
 def test_all_tools_list_contains_new_tools():
     from app.agent.tools import ALL_TOOLS
     tool_names = [t.name for t in ALL_TOOLS]
@@ -134,6 +188,7 @@ def test_all_tools_list_contains_new_tools():
         "delete_track", "set_track_mix", "create_midi_clip", "write_notes",
         "set_clip_name", "load_effect", "create_scene", "write_automation",
         "search_samples", "load_sample",
+        "get_device_parameters", "save_device_preset", "load_device_preset", "list_device_presets",
     ]:
         assert expected in tool_names, f"Missing tool: {expected}"
-    assert len(ALL_TOOLS) == 19
+    assert len(ALL_TOOLS) == 23

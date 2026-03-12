@@ -29,7 +29,7 @@ def mock_send():
 # ── Tool list ──────────────────────────────────────────────────────
 
 def test_all_tools_has_six_entries():
-    assert len(ALL_TOOLS) == 17
+    assert len(ALL_TOOLS) == 23
 
 
 def test_all_tools_have_names():

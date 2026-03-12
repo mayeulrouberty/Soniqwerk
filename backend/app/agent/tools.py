@@ -345,6 +345,105 @@ async def load_sample(track_index: int, sample_path: str) -> dict:
     })
 
 
+# ── Device presets ────────────────────────────────────────────────────────────
+
+@tool
+async def get_device_parameters(track_index: int, device_index: int) -> dict:
+    """Get all parameters of a device with their current values.
+
+    Returns a list of {index, name, value, min, max} dicts.
+    Useful before save_device_preset to inspect what will be saved.
+
+    Args:
+        track_index: 0-based track index
+        device_index: 0-based device index on that track
+    """
+    return await _safe_send("get_device_parameters", {
+        "track_index": track_index,
+        "device_index": device_index,
+    })
+
+
+@tool
+async def save_device_preset(name: str, track_index: int, device_index: int) -> dict:
+    """Save the current state of a device as a named preset.
+
+    Reads all device parameters and writes them to backend/data/presets/{name}.json.
+    Works with any device — native Live instruments, effects, or VSTs.
+
+    Args:
+        name: Preset name, e.g. "Reese Bass V1", "Dark Pad"
+        track_index: 0-based track index
+        device_index: 0-based device index on that track
+    """
+    params_result = await _safe_send("get_device_parameters", {
+        "track_index": track_index,
+        "device_index": device_index,
+    })
+    if "error" in params_result:
+        return params_result
+
+    devices_result = await _safe_send("get_track_devices", {"track_index": track_index})
+    device_name = "Unknown"
+    devices = devices_result.get("devices", [])
+    if device_index < len(devices):
+        device_name = devices[device_index].get("name", "Unknown")
+
+    from app.agent.preset_store import save_preset
+    params = params_result.get("params", [])
+    path = save_preset(name, track_index, device_index, device_name, params)
+    return {"success": True, "name": name, "path": path, "params_count": len(params)}
+
+
+@tool
+async def load_device_preset(name: str, track_index: int, device_index: int) -> dict:
+    """Restore a previously saved preset to a device.
+
+    Reads the preset JSON and applies each saved parameter value.
+    The target device should be the same type as when the preset was saved.
+
+    Args:
+        name: Preset name (from list_device_presets)
+        track_index: 0-based track index to apply preset to
+        device_index: 0-based device index to apply preset to
+    """
+    from app.agent.preset_store import load_preset
+    try:
+        preset = load_preset(name)
+    except FileNotFoundError:
+        return {"error": f"Preset not found: {name!r}. Use list_device_presets() to see available."}
+
+    params = preset.get("params", [])
+    errors = 0
+    for param in params:
+        res = await _safe_send("set_parameter", {
+            "track_index": track_index,
+            "device_index": device_index,
+            "param_index": param["index"],
+            "value": param["value"],
+        })
+        if "error" in res:
+            errors += 1
+
+    return {
+        "success": True,
+        "name": name,
+        "params_restored": len(params) - errors,
+        "errors": errors,
+    }
+
+
+@tool
+async def list_device_presets() -> dict:
+    """List all saved device presets.
+
+    Returns a sorted list of {name, device_name, created_at} dicts.
+    """
+    from app.agent.preset_store import list_presets
+    presets = list_presets()
+    return {"presets": presets, "count": len(presets)}
+
+
 # Export all tools as a list for the agent
 ALL_TOOLS = [
     # Original 6
@@ -369,4 +468,9 @@ ALL_TOOLS = [
     # C3 — Sample library
     search_samples,
     load_sample,
+    # C4 — Device presets
+    get_device_parameters,
+    save_device_preset,
+    load_device_preset,
+    list_device_presets,
 ]
