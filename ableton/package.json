@@ -1,0 +1,9 @@
+{
+  "name": "soniqwerk-bridge",
+  "version": "1.0.0",
+  "description": "Max for Live WebSocket bridge for SONIQWERK",
+  "main": "SONIQWERK_bridge.js",
+  "dependencies": {
+    "ws": "^8.0.0"
+  }
+}
