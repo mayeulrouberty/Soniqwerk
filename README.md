@@ -1,122 +1,115 @@
-# SONIQWERK
+# Soniqwerk
 
-AI-powered music production assistant — RAG chat + Ableton Live agent.
+Chat avec une base de connaissances locale sur la production musicale, ou parle directement à Ableton Live.
 
-Ask questions about music production from your own document library (manuals, plugin documentation, books), and control Ableton Live 11/12 via a natural language agent.
+Tu peux uploader des PDFs (manuels de plugins, livres de sound design, n'importe quoi) et poser des questions dessus via RAG. Il y a aussi un agent LangChain connecté à Ableton via un bridge Max for Live — il peut créer des tracks, charger des instruments, écrire des clips MIDI, automatiser des paramètres, gérer des presets et chercher dans ta sample library, tout ça depuis un prompt texte.
 
-## Features
+## Ce qu'il y a dedans
 
-- **RAG Chat** — Upload PDFs, ask questions, get answers with source citations. Supports Claude, GPT-4o, and local models via Ollama.
-- **Document Library** — Drag-and-drop PDF upload with async ingestion (Celery + ChromaDB).
-- **Ableton Live Agent** — LangChain ReAct agent with Live Object Model tools. Control tracks, devices, parameters, and clips via text commands.
-- **WebSocket Bridge** — Max for Live device bridges the backend to Ableton Live's LOM.
-- **Voice Input** — Dictate chat messages via Web Speech API (Chrome/Edge, fr/en).
+- **Chat RAG** — les PDFs rentrent, les réponses sortent avec leurs sources. Fonctionne avec Claude, GPT-4o ou des modèles locaux via Ollama.
+- **Agent Ableton** — agent ReAct avec ~23 outils LOM. Gestion des tracks, écriture MIDI, contrôle des devices, scènes, automation, search de samples, snapshots de presets.
+- **Device Max for Live** — glisse `SONIQWERK.amxd` sur n'importe quelle track pour avoir un panel de chat intégré sans quitter Ableton.
+- **Bridge WebSocket** — la colle entre le backend FastAPI et le node.script M4L.
 
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | React 18 + TypeScript + Vite + Tailwind CSS + Zustand |
-| Backend API | FastAPI (Python 3.9) + SSE streaming |
-| RAG | LangChain + ChromaDB + text-embedding-3-large + cross-encoder reranking |
-| LLM | Claude (Anthropic) / GPT-4o / GPT-4o-mini / Ollama |
+| Couche | Tech |
+|--------|------|
+| Frontend | React 18 + TypeScript + Vite + Tailwind |
+| Backend | FastAPI + SSE streaming |
+| RAG | LangChain + ChromaDB + text-embedding-3-large |
+| LLM | Claude / GPT-4o / Ollama |
 | Queue | Celery + Redis |
-| Database | PostgreSQL 16 + SQLAlchemy async |
-| Ableton | Max for Live node.script + WebSocket bridge |
+| BDD | PostgreSQL + SQLAlchemy async |
+| M4L | node.script + WebSocket + jsui |
 
 ## Architecture
 
-Three independent processes:
-
 ```
-Browser (React :5173)      Backend (FastAPI :8000)      Workers
-        │                          │                        │
-        │──POST /v1/chat──SSE────▶│──LangChain RAG          │
-        │──POST /v1/documents────▶│──Celery task───────────▶│──PDF→ChromaDB
-        │──POST /v1/agent──SSE───▶│──ReAct agent            │
-                                   │
-                          WS Bridge (:8001)
-                                   │
-                          Max for Live (.amxd)
-                                   │
-                          Ableton Live 11/12
+Browser (:5173)          FastAPI (:8000)           Celery
+      │                        │                       │
+      ├─ POST /v1/chat ─SSE───▶│─ LangChain RAG        │
+      ├─ POST /v1/documents ──▶│─ Celery task ─────────▶│── PDF→ChromaDB
+      └─ POST /v1/agent ─SSE──▶│─ ReAct agent          │
+
+                       WS bridge (:8001)
+                               │
+                        SONIQWERK.amxd
+                               │
+                      Ableton Live 11/12
 ```
 
-## Prerequisites
+## Prérequis
 
 - Python 3.9+
 - Node.js 18+
-- Docker & Docker Compose
-- Ableton Live 11 or 12 + Max for Live (for Ableton agent only)
+- Docker (pour Postgres + Redis)
+- Ableton Live 11 ou 12 avec Max for Live (seulement pour l'agent)
 
-## Quick Start
+## Installation
 
 ```bash
-# 1. Clone
 git clone https://github.com/mayeulrouberty/Soniqwerk.git
 cd Soniqwerk
 
-# 2. Configure environment
 cp backend/.env.example backend/.env
-# Edit backend/.env — add your OpenAI API key and set a strong API_SECRET_KEY
+# remplir OPENAI_API_KEY et API_SECRET_KEY
 
 cp frontend/.env.example frontend/.env
-# Edit frontend/.env — set VITE_API_KEY to match API_SECRET_KEY above
+# VITE_API_KEY doit correspondre à API_SECRET_KEY
 
-# 3. Start infrastructure services
+# démarrer postgres + redis
 docker-compose up -d
 
-# 4. Run database migrations
+# migrations
 cd backend && python -m alembic upgrade head
 
-# 5. Start backend API
+# backend
 uvicorn app.main:app --reload --port 8000
 
-# 6. Start Celery worker (new terminal)
+# worker celery (terminal séparé)
 celery -A workers.celery_app worker --loglevel=info
 
-# 7. Start WebSocket bridge for Ableton (new terminal, optional)
+# bridge WS pour ableton (terminal séparé, optionnel)
 python -m ws_bridge
 
-# 8. Start frontend (new terminal)
+# frontend (terminal séparé)
 cd ../frontend && npm install && npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173)
+Ouvrir http://localhost:5173.
 
-## Ableton Live Setup
+## Setup Ableton
 
-See [ableton/README.md](ableton/README.md) for Max for Live device setup instructions.
+Voir [ableton/README.md](ableton/README.md).
 
-## Environment Variables
+## Variables d'environnement
 
-See `backend/.env.example` for the full list. Key variables:
+Les principales — liste complète dans `backend/.env.example` :
 
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_API_KEY` | OpenAI API key (required) |
-| `API_SECRET_KEY` | Shared API key for X-API-Key header — change in production |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `ANTHROPIC_API_KEY` | Anthropic API key (optional, enables Claude) |
+| Variable | Rôle |
+|----------|------|
+| `OPENAI_API_KEY` | Requis |
+| `API_SECRET_KEY` | Header d'auth — mettre quelque chose de solide |
+| `DATABASE_URL` | Connexion Postgres |
+| `ANTHROPIC_API_KEY` | Optionnel, active Claude |
+| `SAMPLE_PATHS` | Dossiers séparés par `:` pour la recherche de samples |
 
-## Project Structure
+## Structure
 
 ```
 Soniqwerk/
-├── backend/           # FastAPI + RAG + Celery + WS bridge
-│   ├── app/           # API routes, RAG engine, LLM router, agent
-│   ├── workers/       # Celery tasks
-│   ├── ws_bridge/     # WebSocket bridge server (port 8001)
-│   └── tests/         # Unit + integration tests (82 passing)
-├── frontend/          # React + TypeScript + Vite
-│   └── src/
-│       ├── components/   # UI components
-│       ├── hooks/        # useSSE, useUpload, useVoice
-│       └── stores/       # Zustand state
-├── ableton/           # Max for Live bridge script
-└── docs/              # Architecture diagrams and specs
+├── backend/
+│   ├── app/           # routes, RAG, agent, config
+│   ├── workers/       # tâches celery
+│   ├── ws_bridge/     # bridge websocket (port 8001)
+│   └── tests/         # tests unitaires (141 passants)
+├── frontend/
+│   └── src/           # composants React, hooks, stores
+├── ableton/           # device M4L + bridge + scripts ui
+└── docs/              # specs et plans d'implémentation
 ```
 
-## License
+## Licence
 
 MIT
